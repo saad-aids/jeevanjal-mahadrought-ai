@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JeevanJal OS | Maharashtra Drought & Tanker Command Grid</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Leaflet Interactive Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+    body { font-family: 'Inter', sans-serif; background: #050811; color: #e2e8f0; overflow-x: hidden; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .glass { background: rgba(15, 23, 42, 0.72); backdrop-filter: blur(16px); border: 1px solid rgba(56, 189, 248, 0.16); }
+    .glass-danger { background: rgba(30, 15, 25, 0.78); backdrop-filter: blur(16px); border: 1px solid rgba(244, 63, 94, 0.35); }
+    .neon-border { box-shadow: 0 0 25px -5px rgba(14, 165, 233, 0.25); }
+    @keyframes pulse-ring { 0% { transform: scale(0.8); opacity: 0.9; } 100% { transform: scale(2.4); opacity: 0; } }
+    .pulse-dot::before {
+      content: ''; position: absolute; width: 100%; height: 100%; border-radius: 9999px;
+      background: #f43f5e; animation: pulse-ring 1.6s infinite;
+    }
+    #map { height: 410px; width: 100%; border-radius: 0.75rem; z-index: 10; }
+    .leaflet-popup-content-wrapper { background: #0f172a; color: #f8fafc; border: 1px solid #38bdf8; border-radius: 10px; }
+    .leaflet-popup-tip { background: #0f172a; }
+  </style>
+</head>
+<body class="min-h-screen p-4 md:p-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#050811] to-black">
+
+  <!-- TOP COMMAND BAR -->
+  <header class="glass neon-border rounded-2xl px-6 py-4 mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-4">
+      <div class="w-11 h-11 rounded-xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-400 font-bold text-xl">
+        💧
+      </div>
+      <div>
+        <div class="flex items-center gap-2.5">
+          <h1 class="text-xl font-bold tracking-tight text-white">JEEVANJAL OS <span class="text-xs mono px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30">v2.6 MAHARASHTRA GRID</span></h1>
+          <span class="flex items-center gap-1.5 text-xs mono px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+            <span class="w-2 h-2 rounded-full bg-sky-400"></span> LOCAL DEMO DATA
+          </span>
+        </div>
+        <p class="text-xs text-slate-400 mt-0.5">Drought dashboard and dispatch simulation • <span class="text-amber-300 font-medium">Track 02: Heat & Water</span></p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <div class="glass px-3.5 py-2 rounded-xl text-right">
+        <div class="text-[10px] mono uppercase text-slate-400">AWS Open-Source Engine #1</div>
+        <div class="text-xs font-semibold text-sky-400 mono">Strands dispatch demo</div>
+      </div>
+      <div class="glass px-3.5 py-2 rounded-xl text-right">
+        <div class="text-[10px] mono uppercase text-slate-400">AWS Open-Source Engine #2</div>
+        <div class="text-xs font-semibold text-emerald-400 mono">Cedar policy simulation</div>
+      </div>
+      <button onclick="runFullStrandsDispatch()" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-semibold text-sm shadow-lg shadow-sky-500/25 flex items-center gap-2 transition">
+        ⚡ Run Strands Fleet Agent
+      </button>
+    </div>
+  </header>
+
+  <!-- KPI TELEMETRY CARDS -->
+  <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="glass rounded-2xl p-4">
+      <div class="flex justify-between items-start">
+        <span class="text-xs uppercase mono text-slate-400">Critical Zero-Day Talukas</span>
+        <span class="text-xs mono px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30">ALERT</span>
+      </div>
+      <div class="text-3xl font-bold text-white mt-2 mono" id="kpi-critical">4 / 8 Blocks</div>
+      <div class="text-xs text-rose-400 mt-1">Beed, Latur, Dharashiv & Parbhani &lt; 4 days buffer</div>
+    </div>
+
+    <div class="glass rounded-2xl p-4">
+      <div class="flex justify-between items-start">
+        <span class="text-xs uppercase mono text-slate-400">Estimated Surface Evapotranspiration</span>
+        <span class="text-xs mono text-sky-400" id="live-api-badge">Demo baseline</span>
+      </div>
+      <div class="text-3xl font-bold text-amber-400 mt-2 mono" id="kpi-et0">6.48 mm/day</div>
+      <div class="text-xs text-slate-400 mt-1">Estimated FAO Penman-Monteith ($ET_0$) loss</div>
+    </div>
+
+    <div class="glass rounded-2xl p-4">
+      <div class="flex justify-between items-start">
+        <span class="text-xs uppercase mono text-slate-400">Mean Groundwater Depletion</span>
+        <span class="text-xs mono text-rose-400">-3.95m YoY</span>
+      </div>
+      <div class="text-3xl font-bold text-sky-400 mt-2 mono">265 ft Avg</div>
+      <div class="text-xs text-slate-400 mt-1">Basalt hard-rock aquifer stress (GSDA baseline)</div>
+    </div>
+
+    <div class="glass rounded-2xl p-4">
+      <div class="flex justify-between items-start">
+        <span class="text-xs uppercase mono text-slate-400">Cedar Anti-Mafia Guardrail</span>
+        <span class="text-xs mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">ENFORCED</span>
+      </div>
+      <div class="text-3xl font-bold text-emerald-400 mt-2 mono" id="kpi-cedar">Demo policy</div>
+      <div class="text-xs text-slate-400 mt-1">Local diversion simulation • no live OTP verification</div>
+    </div>
+  </section>
+
+  <!-- MAIN WAR ROOM GRID -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- LEFT 7 COLS: SATELLITE MAP + VILLAGE MATRIX -->
+    <div class="lg:col-span-7 space-y-6">
+      <div class="glass rounded-2xl p-5">
+        <div class="flex flex-wrap justify-between items-center mb-3 gap-2">
+          <div>
+            <h2 class="text-base font-bold text-white flex items-center gap-2">🛰️ Maharashtra Hydro-Stress & Tanker Demo Map</h2>
+            <p class="text-xs text-slate-400">Click a village node to inspect estimated topsoil moisture ($m^3/m^3$), borewell drop & planned dispatch</p>
+          </div>
+          <div class="flex gap-2 text-xs mono">
+            <span class="px-2 py-1 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40">● WSI &ge; 74 Critical</span>
+            <span class="px-2 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">● WSI 60–73 High</span>
+          </div>
+        </div>
+        <div id="map"></div>
+      </div>
+
+      <!-- INTERACTIVE VILLAGE TABLE -->
+      <div class="glass rounded-2xl p-5">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-base font-bold text-white">📊 Multi-Variable Water Stress Index (WSI) & Fleet Allocation Matrix</h2>
+          <span class="text-xs mono text-sky-400">Sorted by Strands Priority Score</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400 mono uppercase text-[11px]">
+                <th class="py-2.5 px-2">Village (Taluka)</th>
+                <th class="py-2.5 px-2">Est. Temp / Soil</th>
+                <th class="py-2.5 px-2">GW Drop</th>
+                <th class="py-2.5 px-2">Water Left</th>
+                <th class="py-2.5 px-2">WSI Score</th>
+                <th class="py-2.5 px-2">Strands Tankers</th>
+                <th class="py-2.5 px-2">Cedar Auth</th>
+              </tr>
+            </thead>
+            <tbody id="village-tbody" class="divide-y divide-slate-800/70 mono"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT 5 COLS: STRANDS AGENT CONSOLE + CEDAR SIMULATOR + FARMER CROP AI -->
+    <div class="lg:col-span-5 space-y-6">
+
+      <!-- CONTROL PANEL: TANKER DISPATCH + VIP HIJACK TEST -->
+      <div class="glass rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-base font-bold text-white">🛡️ AWS Strands Dispatcher + Cedar Policy Gate</h2>
+          <span class="text-[11px] mono px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">Anti-Tanker-Mafia</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+            <label class="text-[11px] text-slate-400 mono block">DISTRICT TANKER FLEET</label>
+            <input id="fleetInput" type="range" min="8" max="50" value="22" oninput="document.getElementById('fleetVal').innerText=this.value; renderAll();" class="w-full mt-2 accent-sky-400" />
+            <div class="text-right text-sm font-bold text-sky-400 mono"><span id="fleetVal">22</span> Tankers (12,000L)</div>
+          </div>
+
+          <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800 flex flex-col justify-between">
+            <label class="text-[11px] text-slate-400 mono block">POLITICAL HIJACK TEST</label>
+            <button onclick="simulateVipHijack()" class="mt-1 w-full py-2 px-3 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-semibold mono transition">
+              🚨 Simulate VIP Route Diversion
+            </button>
+          </div>
+        </div>
+
+        <!-- CEDAR ALERT BOX -->
+        <div id="cedar-alert" class="hidden glass-danger rounded-xl p-3.5 mb-4 text-xs"></div>
+
+        <!-- Local demo message; it does not send SMS or verify OTPs. -->
+        <div class="bg-emerald-950/30 border border-emerald-500/30 rounded-xl p-3.5 text-xs">
+          <div class="flex justify-between items-center text-emerald-400 font-semibold mono mb-1">
+            <span>📲 SIMULATED SARPANCH SMS (NOT SENT)</span>
+            <span id="otp-badge" class="bg-emerald-500/20 px-2 py-0.5 rounded">DEMO OTP</span>
+          </div>
+          <p id="marathi-sms" class="text-slate-300 leading-relaxed"></p>
+        </div>
+      </div>
+
+      <!-- DUSHKAL MITRA: FARMER CROP EVAPOTRANSPIRATION CALCULATOR -->
+      <div class="glass rounded-2xl p-5">
+        <h2 class="text-base font-bold text-white mb-1">🌾 Dushkal Mitra — Farmer Crop & Borewell AI Advisor</h2>
+        <p class="text-xs text-slate-400 mb-3">Calculates exact daily crop water demand from live $ET_0$ & advises drought-resilient switches</p>
+
+        <div class="grid grid-cols-3 gap-2.5 mb-3 text-xs">
+          <div>
+            <label class="text-[10px] mono text-slate-400">VILLAGE</label>
+            <select id="cropVillage" onchange="updateCropAdvisor()" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-2 text-white"></select>
+          </div>
+          <div>
+            <label class="text-[10px] mono text-slate-400">CURRENT CROP</label>
+            <select id="cropType" onchange="updateCropAdvisor()" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-2 text-white">
+              <option value="1.25|Sugarcane (ऊस)">Sugarcane (ऊस)</option>
+              <option value="1.05|Cotton (कापूस)">Cotton (कापूस)</option>
+              <option value="0.95|Onion (कांदा)">Onion (कांदा)</option>
+              <option value="0.65|Tur / Pigeon Pea (तूर)">Tur / Pigeon Pea (तूर)</option>
+              <option value="0.55|Bajra (बाजरी)">Bajra (बाजरी)</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] mono text-slate-400">FARM ACRES</label>
+            <input id="cropAcres" type="number" value="3" min="1" max="25" onchange="updateCropAdvisor()" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-2 text-white mono" />
+          </div>
+        </div>
+
+        <div id="crop-output" class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 text-xs space-y-1.5"></div>
+      </div>
+
+      <!-- Local dispatch simulation terminal -->
+      <div class="glass rounded-2xl p-4">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <span class="text-xs mono text-slate-400 ml-1">aws-strands-agent-runtime — bash</span>
+          </div>
+          <span class="text-[10px] mono text-sky-400">@tool + cedar-engine</span>
+        </div>
+        <div id="terminal-logs" class="bg-black/90 rounded-xl p-3 h-44 overflow-y-auto mono text-[11px] space-y-1 text-emerald-400 border border-slate-800"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const villages = [
+      { name: "Dharur (Beed)", dist: "Beed", lat: 18.82, lon: 76.11, deficit: 58, gwDrop: 4.8, pop: 18500, daysLeft: 2, temp: 41.2, soil: 0.062, et0: 6.8 },
+      { name: "Ausa (Latur)", dist: "Latur", lat: 18.25, lon: 76.50, deficit: 55, gwDrop: 4.5, pop: 21000, daysLeft: 3, temp: 40.6, soil: 0.071, et0: 6.5 },
+      { name: "Paranda (Dharashiv)", dist: "Dharashiv", lat: 18.26, lon: 75.45, deficit: 54, gwDrop: 4.3, pop: 16200, daysLeft: 3, temp: 40.3, soil: 0.075, et0: 6.4 },
+      { name: "Manwat (Parbhani)", dist: "Parbhani", lat: 19.30, lon: 76.49, deficit: 52, gwDrop: 4.1, pop: 24000, daysLeft: 4, temp: 40.9, soil: 0.082, et0: 6.6 },
+      { name: "Sangola (Solapur)", dist: "Solapur", lat: 17.43, lon: 75.19, deficit: 49, gwDrop: 3.7, pop: 31000, daysLeft: 5, temp: 41.0, soil: 0.094, et0: 6.3 },
+      { name: "Sillod (Chh. Sambhajinagar)", dist: "Sambhajinagar", lat: 20.30, lon: 75.65, deficit: 46, gwDrop: 3.4, pop: 27500, daysLeft: 6, temp: 39.7, soil: 0.108, et0: 5.9 },
+      { name: "Baramati Rural (Pune)", dist: "Pune", lat: 18.15, lon: 74.58, deficit: 38, gwDrop: 2.6, pop: 29000, daysLeft: 8, temp: 38.8, soil: 0.135, et0: 5.4 },
+      { name: "Katol (Nagpur)", dist: "Nagpur", lat: 21.27, lon: 78.58, deficit: 34, gwDrop: 2.2, pop: 22000, daysLeft: 9, temp: 41.4, soil: 0.142, et0: 5.8 }
+    ];
+
+    function computeWSI(v) {
+      return Math.min(99.2, +((v.deficit * 0.35) + (v.gwDrop * 6.5) + ((10 - v.daysLeft) * 3.2) + (v.et0 * 1.8)).toFixed(1));
+    }
+
+    villages.forEach(v => v.wsi = computeWSI(v));
+    villages.sort((a, b) => b.wsi - a.wsi);
+
+    // Initialize Leaflet Dark Map
+    let map = null;
+    let markersLayer = null;
+    if (typeof L !== "undefined") {
+      map = L.map('map').setView([18.95, 76.05], 6);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap & CartoDB'
+      }).addTo(map);
+      markersLayer = L.layerGroup().addTo(map);
+    }
+
+    function logTerminal(msg, type = "info") {
+      const box = document.getElementById("terminal-logs");
+      if (!box) return;
+      const time = new Date().toLocaleTimeString();
+      const color = type === "error" ? "text-rose-400" : (type === "warn" ? "text-amber-300" : "text-emerald-400");
+      const line = document.createElement("div");
+      line.className = color;
+      line.textContent = `[${time}] ${msg}`;
+      box.appendChild(line);
+      while (box.children.length > 100) box.firstElementChild.remove();
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function getAllocations() {
+      const fleet = Number(document.getElementById("fleetInput").value);
+      const totalWeight = villages.reduce((sum, village) => sum + village.wsi, 0);
+      const allocations = villages.map(village => {
+        const exact = (village.wsi / totalWeight) * fleet;
+        return { village, count: Math.floor(exact), remainder: exact % 1 };
+      });
+      let remaining = fleet - allocations.reduce((sum, item) => sum + item.count, 0);
+      [...allocations]
+        .sort((a, b) => b.remainder - a.remainder)
+        .slice(0, remaining)
+        .forEach(item => item.count += 1);
+      return allocations;
+    }
+
+    function renderAll() {
+      const tbody = document.getElementById("village-tbody");
+      const allocations = getAllocations();
+      if (markersLayer) markersLayer.clearLayers();
+      tbody.replaceChildren();
+
+      allocations.forEach(({ village, count }) => {
+        const critical = village.wsi >= 74;
+        const high = village.wsi >= 60;
+        const statusClass = critical ? "text-rose-400" : (high ? "text-amber-300" : "text-emerald-400");
+        const row = document.createElement("tr");
+        row.className = "hover:bg-slate-800/40";
+        row.innerHTML = `
+          <td class="py-2.5 px-2 text-white">${village.name}</td>
+          <td class="py-2.5 px-2">${village.temp.toFixed(1)}°C / ${village.soil.toFixed(3)}</td>
+          <td class="py-2.5 px-2 text-rose-300">-${village.gwDrop.toFixed(1)}m</td>
+          <td class="py-2.5 px-2 ${statusClass}">${village.daysLeft} days</td>
+          <td class="py-2.5 px-2 font-bold ${statusClass}">${village.wsi.toFixed(1)}</td>
+          <td class="py-2.5 px-2">${count}</td>
+          <td class="py-2.5 px-2 text-emerald-400">Demo</td>`;
+        tbody.appendChild(row);
+
+        if (markersLayer) {
+          const marker = L.circleMarker([village.lat, village.lon], {
+            radius: Math.max(7, Math.min(16, village.wsi / 5)),
+            color: critical ? "#fb7185" : (high ? "#fbbf24" : "#34d399"),
+            fillColor: critical ? "#e11d48" : (high ? "#d97706" : "#059669"),
+            fillOpacity: 0.8,
+            weight: 2
+          });
+          marker.bindPopup(
+            `<strong>${village.name}</strong><br>WSI: ${village.wsi.toFixed(1)}<br>` +
+            `Water remaining: ${village.daysLeft} days<br>GW drop: ${village.gwDrop.toFixed(1)}m<br>` +
+            `Planned tankers: ${count}`
+          );
+          markersLayer.addLayer(marker);
+        }
+      });
+
+      document.getElementById("fleetVal").textContent = document.getElementById("fleetInput").value;
+      document.getElementById("kpi-critical").textContent =
+        `${villages.filter(village => village.wsi >= 74).length} / ${villages.length} Blocks`;
+      const priority = allocations[0];
+      document.getElementById("marathi-sms").textContent =
+        `${priority.village.name} साठी ${priority.count} टँकर नियोजित आहेत. ` +
+        `पाणी शिल्लक: ${priority.village.daysLeft} दिवस. हा स्थानिक डेमो संदेश आहे.`;
+      updateCropAdvisor();
+    }
+
+    function updateCropAdvisor() {
+      const villageSelect = document.getElementById("cropVillage");
+      const cropSelect = document.getElementById("cropType");
+      const acresInput = document.getElementById("cropAcres");
+      const output = document.getElementById("crop-output");
+      if (!villageSelect || !cropSelect || !acresInput || !output) return;
+
+      const village = villages.find(item => item.name === villageSelect.value) || villages[0];
+      const [cropCoefficient, cropName] = cropSelect.value.split("|");
+      const acres = Number(acresInput.value);
+      if (!Number.isFinite(acres) || acres < 1 || acres > 25) {
+        output.textContent = "Enter a farm size between 1 and 25 acres.";
+        return;
+      }
+
+      const cropWaterMm = village.et0 * Number(cropCoefficient);
+      const litersPerDay = Math.round(cropWaterMm * acres * 4046.86);
+      const bajraLiters = Math.round(village.et0 * 0.55 * acres * 4046.86);
+      output.innerHTML = `
+        <p class="text-white font-semibold">${cropName} in ${village.name}</p>
+        <p class="text-slate-300">Estimated crop water use: <span class="text-amber-300">${litersPerDay.toLocaleString()} L/day</span> for ${acres} acre(s).</p>
+        <p class="text-slate-400">Estimate = ET₀ ${village.et0.toFixed(1)} mm/day × crop coefficient; actual demand varies by crop stage and irrigation efficiency.</p>
+        <p class="text-emerald-300">Bajra comparison estimate: ${bajraLiters.toLocaleString()} L/day.</p>`;
+    }
+
+    function runFullStrandsDispatch() {
+      const allocations = getAllocations();
+      const fleet = Number(document.getElementById("fleetInput").value);
+      logTerminal(`Local dispatch demo started for ${fleet} tankers; villages ranked by WSI.`);
+      allocations.forEach(({ village, count }) => {
+        logTerminal(`${village.name}: ${count} tanker(s) planned (WSI ${village.wsi.toFixed(1)}).`);
+      });
+      logTerminal("Plan generated locally; no AWS Strands or Cedar service was called.");
+    }
+
+    function simulateVipHijack() {
+      const alertBox = document.getElementById("cedar-alert");
+      alertBox.classList.remove("hidden");
+      alertBox.textContent = "Simulated policy denial: VIP route diversion blocked in this local demo. No live Cedar service was called.";
+      logTerminal("Simulated VIP diversion denied by demo policy.", "warn");
+    }
+
+    function initializeDashboard() {
+      const villageSelect = document.getElementById("cropVillage");
+      villages.forEach(village => {
+        const option = document.createElement("option");
+        option.value = village.name;
+        option.textContent = village.name;
+        villageSelect.appendChild(option);
+      });
+      renderAll();
+      logTerminal("Dashboard initialized with the static demonstration dataset.");
+      if (!map) {
+        logTerminal("Leaflet did not load; the map is unavailable. Check network/CDN access.", "error");
+        return;
+      }
+      map.invalidateSize();
+      logTerminal("Map initialized. Weather and village figures are estimates, not live telemetry.");
+    }
+
+    initializeDashboard();
+  </script>
+</body>
+</html>

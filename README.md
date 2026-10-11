@@ -30,6 +30,10 @@ Pushing to `main` deploys `index.html` to GitHub Pages using the workflow in `.g
 
 GitHub Pages serves only the static dashboard; it does not run the Streamlit app. To host `app.py`, use a Python app host such as Streamlit Community Cloud and select this repository with `app.py` as the entry point.
 
+## Railway deployment
+
+Deploy the repository as a Railway service. Railway installs dependencies from `requirements.txt` and uses the root `Procfile` to start Streamlit on the Railway-provided `$PORT`. Do not set the start command to `python app.py`; Streamlit apps must be started with `streamlit run`.
+
 ## Dependencies
 
 Install the Python packages listed in `requirements.txt`. No AWS account is required for the local demos.

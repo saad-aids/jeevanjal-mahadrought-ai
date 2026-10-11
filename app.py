@@ -178,13 +178,14 @@ with t1:
     c_left, c_right = st.columns([1.15, 1])
     with c_left:
         st.subheader("📍 Real-Time Drought & Evapotranspiration Heatmap")
-        fig = px.scatter_mapbox(
+        fig = px.scatter_map(
             df, lat="Lat", lon="Lon", size="WSI_Score", color="WSI_Score",
             hover_name="Village",
             hover_data=["Status", "Live_Temp_C", "Soil_Moisture_m3", "Evapotranspiration_mm", "GW_Drop_m", "Days_Water_Left"],
-            color_continuous_scale="YlOrRd", zoom=5.7, center={"lat": 18.9, "lon": 76.0}, height=440
+            color_continuous_scale="YlOrRd", zoom=5.7, center={"lat": 18.9, "lon": 76.0},
+            map_style="open-street-map", height=440
         )
-        fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0})
+        fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
         st.plotly_chart(fig, use_container_width=True)
     with c_right:
         st.subheader("📊 Live Hydro-Meteorological Matrix")
